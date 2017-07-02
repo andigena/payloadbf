@@ -1,0 +1,16 @@
+[paths]
+source =
+   src/payloadbf
+   */site-packages/payloadbf
+
+[run]
+branch = true
+source =
+    payloadbf
+    tests
+parallel = true
+
+[report]
+show_missing = true
+precision = 2
+omit = *migrations*
