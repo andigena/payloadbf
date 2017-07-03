@@ -4,4 +4,5 @@ Reference
 .. toctree::
     :glob:
 
-    payloadbf*
+    payloadbuffer.rst
+

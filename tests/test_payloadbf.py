@@ -1,6 +1,4 @@
-
-import payloadbf
-
+from payloadbf import *
 
 def test_main():
-    assert payloadbf  # use your library here
+    assert PayloadBuffer
