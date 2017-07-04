@@ -69,7 +69,17 @@ class PayloadBuffer:
 
         return bytes(result)
 
-    def pprint_fragments(self):
+    def pprint_fragments(self, colorized=True):
+        r""" pprint_fragments(self, colorized=True):
+
+        Pretty-prints the fragments in the PayloadBuffer.
+
+        Arguments:
+            colorized(bool): Controls if the returned string is colorized.
+
+        Returns:
+            A string containing an overview of the fragments.
+        """
         res = []
         w = math.ceil(math.log(self.size(), 16))
         fmt = '{:>0%dx}-{:>0%dx} ({:%dx}): {} {} ({})' % (w, w, w)
@@ -85,7 +95,9 @@ class PayloadBuffer:
                 binascii.hexlify(f.frag[:4]).decode('latin-1'),
                 f.name, f.tags
             )
-            res.append(colored(txt, tag_colors[f.tags[0]] if f.tags else 'white'))
+            if colorized:
+                txt = colored(txt, tag_colors[f.tags[0]] if f.tags else 'white')
+            res.append(txt)
 
         return '\n'.join(res)
 
