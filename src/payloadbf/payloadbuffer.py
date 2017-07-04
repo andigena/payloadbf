@@ -1,15 +1,15 @@
 import binascii
 import itertools
 import math
-import operator
 import os
-
 from collections import namedtuple
-from pwn import *
-from termcolor import colored, COLORS
 
+from pwn import *
+from termcolor import COLORS
+from termcolor import colored
 
 Fragment = namedtuple('Fragment', ['offset', 'frag', 'name', 'tags'])
+
 
 class PayloadBuffer:
     r""" Simple class that makes construction of exploit payloads a little more convenient.
@@ -115,8 +115,8 @@ class PayloadBuffer:
         if first.offset != 0:
             res.append(fmt_gap.format(0, first.offset, first.offset))
 
-        for i in range(len(frags)-1):
-            for j in range(i+1, len(frags)):
+        for i in range(len(frags) - 1):
+            for j in range(i + 1, len(frags)):
                 if frags[i].offset + len(frags[i].frag) > frags[j].offset:
                     res.append(fmt_collision.format(
                         frags[i].offset, frags[i].offset + len(frags[i].frag), len(frags[i].frag),
@@ -125,8 +125,8 @@ class PayloadBuffer:
                 else:
                     break
 
-            gap_len = frags[i+1].offset - (frags[i].offset + len(frags[i].frag))
+            gap_len = frags[i + 1].offset - (frags[i].offset + len(frags[i].frag))
             if gap_len > 0:
-                res.append(fmt_gap.format(frags[i].offset + len(frags[i].frag), frags[i+1].offset, gap_len))
+                res.append(fmt_gap.format(frags[i].offset + len(frags[i].frag), frags[i + 1].offset, gap_len))
 
         return '\n'.join(res)
