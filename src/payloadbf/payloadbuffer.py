@@ -33,7 +33,11 @@ class PayloadBuffer:
         >>> pb.add(28, 'EFGH', 'pivot', ['chain A'])
         >>> pb.pprint_gaps()
         ' 0-10 (10)\n14-1c ( 8)'
-
+        >>> another = PayloadBuffer()
+        >>> another.append('1234', 'filler', ['chain B'])
+        >>> pb.append(another)
+        >>> pb.get_buffer()[32:36] == '1234'
+        True
     """
     def __init__(self, length=0, dbg=False):
         self.length = length
@@ -41,11 +45,17 @@ class PayloadBuffer:
         self.fragments = []
 
     def add(self, offset, frag, name='', tags=[]):
+        assert hasattr(tags, '__iter__')
+        if isinstance(frag, PayloadBuffer):
+            for f in frag.fragments:
+                self.fragments.append(Fragment(offset=offset + f.offset, frag=f.frag, name=f.name, tags=f.tags))
+            return
+
         self.fragments.append(Fragment(offset=offset, frag=flat(frag), name=name, tags=tags))
 
     def append(self, frag, name='', tags=[]):
         sz = self.size()
-        self.fragments.append(Fragment(offset=sz, frag=flat(frag), name=name, tags=tags))
+        self.add(offset=sz, frag=frag, name=name, tags=tags)
 
     """ Returns the smallest buffer size that can accommodate all the fragments (not the total length!). """
     def size(self):
