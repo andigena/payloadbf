@@ -81,8 +81,9 @@ class PayloadBuffer:
             A string containing an overview of the fragments.
         """
         res = []
-        w = math.ceil(math.log(self.size(), 16))
-        fmt = '{:>0%dx}-{:>0%dx} ({:%dx}): {} {} ({})' % (w, w, w)
+        num_w = math.ceil(math.log(self.size(), 16))
+        name_w = max(map(lambda f: len(f.name), self.fragments))
+        fmt = '{:>0%dx}-{:>0%dx} ({:%dx}): {} {:%ds}' % (num_w, num_w, num_w, name_w + 1)
 
         tag_colors = dict(zip(
             set(itertools.chain(*[f.tags for f in self.fragments])),
@@ -93,10 +94,15 @@ class PayloadBuffer:
             txt = fmt.format(
                 f.offset, f.offset + len(f.frag), len(f.frag),
                 binascii.hexlify(f.frag[:4]).decode('latin-1'),
-                f.name, f.tags
+                f.name
             )
             if colorized:
                 txt = colored(txt, tag_colors[f.tags[0]] if f.tags else 'white')
+                tags_str = ' (' + ', '.join([colored(t, tag_colors[t]) for t in f.tags]) + ')'
+            else:
+                tags_str = ' (' + ', '.join(f.tags) + ')'
+
+            txt += tags_str
             res.append(txt)
 
         return '\n'.join(res)
