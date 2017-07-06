@@ -5,10 +5,26 @@ import os
 from collections import namedtuple
 
 from pwn import *
+from recordclass import recordclass
 from termcolor import COLORS
 from termcolor import colored
 
-Fragment = namedtuple('Fragment', ['offset', 'frag', 'name', 'tags'])
+FragmentT = recordclass('Fragment', ['offset', 'frag', 'name', 'tags'])
+
+
+class Fragment(FragmentT):
+    def __new__(cls, *args, **kwargs):
+        inst = super(Fragment, cls).__new__(cls, 0, '', '', [])
+        if len(args) == 1 and hasattr(args[0], '__iter__'):
+            for idx, prop in enumerate(args[0]):
+                inst[idx] = prop
+        else:
+            for idx, prop in enumerate(args):
+                inst[idx] = prop
+            for k, prop in kwargs.items():
+                inst.__setattr__(k, prop)
+
+        return inst
 
 
 class PayloadBuffer:
@@ -34,9 +50,18 @@ class PayloadBuffer:
         >>> pb.pprint_gaps()
         ' 0-10 (10)\n14-1c ( 8)'
         >>> another = PayloadBuffer()
-        >>> another.append('1234', 'filler', ['chain B'])
+        >>> another.add(0, [(0, 'as'), (2, 'df')])
+        >>> another.append({
+        ...     0: '1234',
+        ...     4: {
+        ...         'frag': '5678',
+        ...         'name': 'filler2',
+        ...         'tags': ['chain C']
+        ...     },
+        ...     8: ['9abc', 'saved retaddr', ['chain C', 'retaddr']]
+        ... })
         >>> pb.append(another)
-        >>> pb.get_buffer()[32:36] == '1234'
+        >>> pb.get_buffer()[36:40] == '1234'
         True
     """
     def __init__(self, length=0, dbg=False):
@@ -46,12 +71,30 @@ class PayloadBuffer:
 
     def add(self, offset, frag, name='', tags=[]):
         assert hasattr(tags, '__iter__')
+
         if isinstance(frag, PayloadBuffer):
             for f in frag.fragments:
                 self.fragments.append(Fragment(offset=offset + f.offset, frag=f.frag, name=f.name, tags=f.tags))
-            return
 
-        self.fragments.append(Fragment(offset=offset, frag=flat(frag), name=name, tags=tags))
+        elif isinstance(frag, dict):
+            # a dictionary
+            for off, props in frag.items():
+                if isinstance(props, str):
+                    # only a fragment buffer
+                    f = Fragment(offset=offset + off, frag=props)
+                elif isinstance(props, dict):
+                    f = Fragment(offset + off, **props)
+                elif hasattr(props, '__iter__'):
+                    f = Fragment([offset + off] + [p for p in props])
+                else:
+                    raise 'Unsupported invocation of add'
+                self.fragments.append(f)
+
+        elif hasattr(frag, '__iter__'):
+            for f in frag:
+                self.fragments.append(Fragment(f))
+        else:
+            self.fragments.append(Fragment(offset=offset, frag=flat(frag), name=name, tags=tags))
 
     def append(self, frag, name='', tags=[]):
         sz = self.size()
