@@ -133,6 +133,9 @@ class PayloadBuffer:
         Returns:
             A string containing an overview of the fragments.
         """
+        if not self.fragments:
+            return ''
+
         res = []
         num_w = math.ceil(math.log(self.size(), 16))
         name_w = max(map(lambda f: len(f.name), self.fragments))
@@ -161,6 +164,9 @@ class PayloadBuffer:
         return '\n'.join(res)
 
     def pprint_gaps(self):
+        if not self.fragments:
+            return ''
+
         res = []
         w = math.ceil(math.log(self.size(), 16))
         fmt_collision = 'Collision at {:>0%dx}-{:>0%dx} ({:%dx}) overlaps {:>0%dx}-{:>0%dx} for {:%dx} bytes' % (
