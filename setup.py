@@ -62,7 +62,7 @@ setup(
         # eg: 'keyword1', 'keyword2', 'keyword3',
     ],
     install_requires=[
-        'pwntools', 'termcolor', 'recordclass'  # eg: 'aspectlib==1.1.1', 'six>=1.7',
+        'pwntools', 'termcolor', 'recordclass', 'pandas', 'bokeh'
     ],
     extras_require={
         # eg:
