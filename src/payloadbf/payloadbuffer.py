@@ -208,7 +208,7 @@ class PayloadBuffer:
         for f in sorted(self.fragments):
             txt = fmt.format(
                 f.offset, f.offset + len(f.frag), len(f.frag),
-                binascii.hexlify(f.frag[:4]).decode('latin-1'),
+                binascii.hexlify(f.frag[:4]),
                 f.name
             )
             if colorized:
