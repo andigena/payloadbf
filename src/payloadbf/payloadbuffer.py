@@ -111,6 +111,9 @@ class PayloadBuffer:
         end = max(self.fragments, key=lambda f: f.offset + len(f.frag))
         return end.offset + len(end.frag)
 
+    def unique_tags(self):
+        return set(itertools.chain(*[f.tags for f in self.fragments]))
+
     def get_buffer(self):
         if self.length == 0:
             self.length = self.size()
@@ -201,7 +204,7 @@ class PayloadBuffer:
         fmt = '{:>0%dx}-{:>0%dx} ({:%dx}): {} {:%ds}' % (num_w, num_w, num_w, name_w + 1)
 
         tag_colors = dict(zip(
-            set(itertools.chain(*[f.tags for f in self.fragments])),
+            self.unique_tags(),
             COLORS
         ))
 
