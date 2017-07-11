@@ -3,7 +3,8 @@ import itertools
 import math
 import os
 
-from bokeh.models import HoverTool, ColumnDataSource, LinearColorMapper, PrintfTickFormatter
+from bokeh import palettes as bp
+from bokeh.models import HoverTool, ColumnDataSource, CategoricalColorMapper, PrintfTickFormatter
 from bokeh.plotting import figure, output_file, save, show
 from pwn import *
 from recordclass import recordclass
@@ -135,6 +136,7 @@ class PayloadBuffer:
             size=[len(f.frag) for f in self.fragments],
             name=[f.name for f in self.fragments],
             tags=[f.tags for f in self.fragments],
+            ftag=[f.tags[0] if f.tags else '' for f in self.fragments],
             dump=[binascii.hexlify(f.frag[:4]) for f in self.fragments],
             yy=[0.5 for _ in range(len(self.fragments))]
         ))
@@ -144,8 +146,8 @@ class PayloadBuffer:
         x_range = [-2, self.size() + 2]
         y_range = [0, 2]
 
-        colors = ['#75968f', '#a5bab7', '#c9d9d3', '#e2e2e2', '#dfccce', '#ddb7b1', '#cc7878', '#933b41', '#550b1d']
-        mapper = LinearColorMapper(palette=colors, low=x_range[0], high=x_range[1])
+        factors = list(set([f.tags[0] if f.tags else '' for f in self.fragments]))
+        mapper = CategoricalColorMapper(factors=factors, palette=bp.viridis(len(factors)))
 
         p = figure(title='Fragments', tools='hover,resize,reset,xwheel_zoom,xpan',
                    toolbar_location='above',
@@ -166,7 +168,7 @@ class PayloadBuffer:
 
         p.rect('xx', 'yy', 'size', 1, width_units='data', height_units='data',
                source=source, fill_alpha=0.6,
-               fill_color={'field': 'offset', 'transform': mapper},
+               fill_color={'field': 'ftag', 'transform': mapper},
                )
 
         p.select_one(HoverTool).tooltips = [
