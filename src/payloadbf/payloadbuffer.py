@@ -42,7 +42,7 @@ class PayloadBuffer:
     Examples:
         >>> pb = PayloadBuffer(32, dbg=True)
         >>> pb.add(16, 'ABCD', 'ret address')
-        >>> pb.size()
+        >>> pb.last_fragment_end()
         20
         >>> '10-14 ( 4): 41424344 ret address' in pb.pprint_fragments()
         True
@@ -101,23 +101,33 @@ class PayloadBuffer:
             self.fragments.append(Fragment(offset=offset, frag=flat(frag), name=name, tags=tags))
 
     def append(self, frag, name='', tags=[]):
-        sz = self.size()
+        sz = self.last_fragment_end()
         self.add(offset=sz, frag=frag, name=name, tags=tags)
 
-    """ Returns the smallest buffer size that can accommodate all the fragments (not the total length!). """
-    def size(self):
+    def last_fragment_end(self):
+        """ Return the smallest buffer size that can accommodate all the fragments (not the total length!). """
         if not self.fragments:
             return 0
 
         end = max(self.fragments, key=lambda f: f.offset + len(f.frag))
         return end.offset + len(end.frag)
 
+    def __len__(self):
+        """ Return the total length of the PayloadBuffer.
+
+        This is either the length argument to __init__ (if it was provided), or the end of the last fragment.
+        """
+        if self.length:
+            return self.length
+        else:
+            return self.last_fragment_end()
+
     def unique_tags(self):
         return set(itertools.chain(*[f.tags for f in self.fragments]))
 
     def get_buffer(self):
         if self.length == 0:
-            self.length = self.size()
+            self.length = self.last_fragment_end()
 
         if self.debug:
             result = bytearray(cyclic(self.length))
@@ -143,7 +153,7 @@ class PayloadBuffer:
 
         source.data['xx'] = [x[0] + x[1] / 2 for x in zip(source.data['offset'], source.data['size'])]
 
-        x_range = [-2, self.size() + 2]
+        x_range = [-2, self.last_fragment_end() + 2]
         y_range = [0, 2]
 
         factors = list(set([f.tags[0] if f.tags else '' for f in self.fragments]))
@@ -201,7 +211,7 @@ class PayloadBuffer:
             return ''
 
         res = []
-        num_w = math.ceil(math.log(self.size(), 16))
+        num_w = math.ceil(math.log(self.last_fragment_end(), 16))
         name_w = max(map(lambda f: len(f.name), self.fragments))
         fmt = '{:>0%dx}-{:>0%dx} ({:%dx}): {} {:%ds}' % (num_w, num_w, num_w, name_w + 1)
 
@@ -232,7 +242,7 @@ class PayloadBuffer:
             return ''
 
         res = []
-        w = math.ceil(math.log(self.size(), 16))
+        w = math.ceil(math.log(self.last_fragment_end(), 16))
         fmt_collision = 'Collision at {:>0%dx}-{:>0%dx} ({:%dx}) overlaps {:>0%dx}-{:>0%dx} for {:%dx} bytes' % (
             w, w, w, w, w, w
         )
