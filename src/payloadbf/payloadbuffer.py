@@ -40,14 +40,14 @@ class PayloadBuffer:
         dbg(bool): If True, gaps are filled with random data, otherwise with a cyclic pattern.
 
     Examples:
-        >>> pb = PayloadBuffer(32, dbg=True)
+        >>> pb = PayloadBuffer(48, dbg=True)
         >>> pb.add(16, 'ABCD', 'ret address')
         >>> pb.last_fragment_end()
         20
         >>> '10-14 ( 4): 41424344 ret address' in pb.pprint_fragments()
         True
         >>> pb.get_buffer()
-        'aaaabaaacaaadaaaABCDfaaagaaahaaa'
+        'aaaabaaacaaadaaaABCDfaaagaaahaaaiaaajaaakaaalaaa'
         >>> pb.add(28, 'EFGH', 'pivot', ['chain A'])
         >>> pb.pprint_gaps()
         ' 0-10 (10)\n14-1c ( 8)'
@@ -73,12 +73,20 @@ class PayloadBuffer:
         self.debug = dbg
         self.fragments = []
 
+    def _add(self, f):
+        if self.length:
+            end = f.offset + len(f.frag)
+            if end > self.length:
+                raise ValueError('{} out of bounds: 0x{:x}'.format(f, self.length))
+
+        self.fragments.append(f)
+
     def add(self, offset, frag, name='', tags=[]):
         assert hasattr(tags, '__iter__')
 
         if isinstance(frag, PayloadBuffer):
             for f in frag.fragments:
-                self.fragments.append(Fragment(offset=offset + f.offset, frag=f.frag, name=f.name, tags=f.tags))
+                self._add(Fragment(offset=offset + f.offset, frag=f.frag, name=f.name, tags=f.tags))
 
         elif isinstance(frag, dict):
             # a dictionary
@@ -92,13 +100,13 @@ class PayloadBuffer:
                     f = Fragment([offset + off] + [p for p in props])
                 else:
                     raise 'Unsupported invocation of add'
-                self.fragments.append(f)
+                self._add(f)
 
         elif hasattr(frag, '__iter__'):
             for f in frag:
-                self.fragments.append(Fragment(f))
+                self._add(Fragment(f))
         else:
-            self.fragments.append(Fragment(offset=offset, frag=flat(frag), name=name, tags=tags))
+            self._add(Fragment(offset=offset, frag=flat(frag), name=name, tags=tags))
 
     def append(self, frag, name='', tags=[]):
         sz = self.last_fragment_end()
