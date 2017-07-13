@@ -12,11 +12,12 @@ from termcolor import COLORS
 from termcolor import colored
 
 FragmentT = recordclass('Fragment', ['offset', 'frag', 'name', 'tags'])
+default_tag = ['untagged']
 
 
 class Fragment(FragmentT):
     def __new__(cls, *args, **kwargs):
-        inst = super(Fragment, cls).__new__(cls, 0, '', '', [])
+        inst = super(Fragment, cls).__new__(cls, 0, '', '', default_tag)
         if len(args) == 1 and hasattr(args[0], '__iter__'):
             for idx, prop in enumerate(args[0]):
                 inst[idx] = prop
@@ -81,7 +82,7 @@ class PayloadBuffer:
 
         self.fragments.append(f)
 
-    def add(self, offset, frag, name='', tags=[]):
+    def add(self, offset, frag, name='', tags=default_tag):
         assert hasattr(tags, '__iter__')
 
         if isinstance(frag, PayloadBuffer):
@@ -108,7 +109,7 @@ class PayloadBuffer:
         else:
             self._add(Fragment(offset=offset, frag=flat(frag), name=name, tags=tags))
 
-    def append(self, frag, name='', tags=[]):
+    def append(self, frag, name='', tags=default_tag):
         sz = self.last_fragment_end()
         self.add(offset=sz, frag=frag, name=name, tags=tags)
 
