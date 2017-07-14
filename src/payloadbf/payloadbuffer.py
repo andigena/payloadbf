@@ -4,7 +4,7 @@ import math
 import os
 
 from bokeh import palettes as bp
-from bokeh.models import HoverTool, ColumnDataSource, CategoricalColorMapper, PrintfTickFormatter
+from bokeh.models import HoverTool, ColumnDataSource, CategoricalColorMapper, Legend, PrintfTickFormatter
 from bokeh.plotting import figure, output_file, save, show
 from pwn import *
 from recordclass import recordclass
@@ -150,18 +150,6 @@ class PayloadBuffer:
 
     def output_viz(self, filename='pb.html'):
         output_file(filename)
-        source = ColumnDataSource(data=dict(
-            offset=[f.offset for f in self.fragments],
-            size=[len(f.frag) for f in self.fragments],
-            name=[f.name for f in self.fragments],
-            tags=[f.tags for f in self.fragments],
-            ftag=[f.tags[0] if f.tags else '' for f in self.fragments],
-            dump=[binascii.hexlify(f.frag[:4]) for f in self.fragments],
-            yy=[0.5 for _ in range(len(self.fragments))]
-        ))
-
-        source.data['xx'] = [x[0] + x[1] / 2 for x in zip(source.data['offset'], source.data['size'])]
-
         x_range = [-2, self.last_fragment_end() + 2]
         y_range = [0, 2]
 
@@ -172,23 +160,47 @@ class PayloadBuffer:
                    toolbar_location='above',
                    active_scroll='xwheel_zoom',
                    x_range=x_range,
-                   y_range=y_range
+                   y_range=y_range,
+                   responsive=True
                    )
 
         p.xaxis[0].formatter = PrintfTickFormatter(format="0x%x")
+        p.xaxis.bounds = (0, len(self))
         p.yaxis.visible = False
         p.yaxis.axis_line_color = None
         p.yaxis.minor_tick_line_color = None
         p.yaxis.major_tick_line_color = None
         p.plot_width = 1200
         p.plot_height = 150
+
         p.outline_line_color = None
         p.grid.grid_line_color = None
 
-        p.rect('xx', 'yy', 'size', 1, width_units='data', height_units='data',
-               source=source, fill_alpha=0.6,
-               fill_color={'field': 'ftag', 'transform': mapper},
-               )
+        sorted_fragments = sorted(self.fragments, key=lambda fr: fr.tags[0])
+        renderers = []
+        for ftag, gr in itertools.groupby(sorted_fragments, key=lambda fr: fr.tags[0]):
+            gr = list(gr)
+            cds = ColumnDataSource(data=dict(
+                offset=[f.offset for f in gr],
+                size=[len(f.frag) for f in gr],
+                name=[f.name for f in gr],
+                tags=[f.tags for f in gr],
+                ftag=[ftag for _ in range(len(gr))],
+                dump=[binascii.hexlify(f.frag[:4]) for f in gr],
+                xx=[f.offset + (len(f.frag)) / 2 for f in gr],
+                yy=[0.5 for _ in range(len(gr))]
+            ))
+            renderer = p.rect('xx', 'yy', 'size', 1, width_units='data', height_units='data',
+                              source=cds, fill_alpha=0.6,
+                              fill_color={'field': 'ftag', 'transform': mapper},
+                              # hover_color='firebrick',
+                              muted_alpha=0.2
+                              )
+            renderers.append((ftag, [renderer]))
+
+        legend = Legend(items=renderers, location=(10, -30))
+        legend.click_policy = "mute"
+        p.add_layout(legend, 'right')
 
         p.select_one(HoverTool).tooltips = [
             ('offset', '@offset'),
