@@ -193,7 +193,7 @@ class PayloadBuffer:
             renderer = p.rect('xx', 'yy', 'size', 1, width_units='data', height_units='data',
                               source=cds, fill_alpha=0.6,
                               fill_color={'field': 'ftag', 'transform': mapper},
-                              # hover_color='firebrick',
+                              hover_alpha=0.2,
                               muted_alpha=0.2
                               )
             renderers.append((ftag, [renderer]))
