@@ -29,6 +29,7 @@ class Fragment(FragmentT):
             for k, prop in kwargs.items():
                 inst.__setattr__(k, prop)
 
+        inst.frag = flat(inst.frag)
         return inst
 
     def __len__(self):
@@ -44,8 +45,10 @@ class Fragment(FragmentT):
 class PayloadBuffer:
     r""" Simple class that makes construction of exploit payloads a little more convenient.
 
-    It's just a dictionary of offsets into the buffer and the corresponding fragments of the payload.
-    The debug parameter controls whether the buffer is pre-filled with random bytes or a cyclic pattern.
+    It's a dictionary of offsets into the buffer and the corresponding fragments of the payload. The debug
+    parameter controls whether the buffer is pre-filled with random bytes or a cyclic pattern. Fragment buffers
+    are automatically flattened via `flat from pwntools
+    <http://docs.pwntools.com/en/stable/util/packing.html#pwnlib.util.packing.flat>`_.
 
     Arguments:
         length(int): The length of the buffer.
@@ -65,10 +68,11 @@ class PayloadBuffer:
         ' 0-10 (10)\n14-1c ( 8)'
         >>> another = PayloadBuffer()
         >>> another.add(0, [(0, 'as'), (2, 'df')])
+        >>> context.arch = 'i386'
         >>> another.append({
         ...     0: '1234',
         ...     4: {
-        ...         'frag': '5678',
+        ...         'frag': 0x35363738,
         ...         'name': 'filler2',
         ...         'tags': ['chain C']
         ...     },
@@ -76,6 +80,8 @@ class PayloadBuffer:
         ... })
         >>> pb.append(another)
         >>> pb.get_buffer()[36:40] == '1234'
+        True
+        >>> pb.get_buffer()[40:44] == '8765'
         True
         >>> assert pb.output_viz()
     """
@@ -117,7 +123,7 @@ class PayloadBuffer:
             for f in frag:
                 self._add(Fragment(f))
         else:
-            self._add(Fragment(offset=offset, frag=flat(frag), name=name, tags=tags))
+            self._add(Fragment(offset=offset, frag=frag, name=name, tags=tags))
 
     def append(self, frag, name='', tags=default_tag):
         sz = self.last_fragment_end()
