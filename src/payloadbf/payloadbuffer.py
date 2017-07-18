@@ -29,6 +29,9 @@ class Fragment(FragmentT):
 
         return inst
 
+    def __len__(self):
+        return len(self.frag)
+
 
 class PayloadBuffer:
     r""" Simple class that makes construction of exploit payloads a little more convenient.
