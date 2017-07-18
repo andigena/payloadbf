@@ -1,4 +1,5 @@
 import binascii
+import functools
 import itertools
 import math
 import os
@@ -15,6 +16,7 @@ FragmentT = recordclass('Fragment', ['offset', 'frag', 'name', 'tags'])
 default_tag = ['untagged']
 
 
+@functools.total_ordering
 class Fragment(FragmentT):
     def __new__(cls, *args, **kwargs):
         inst = super(Fragment, cls).__new__(cls, 0, '', '', default_tag)
@@ -31,6 +33,12 @@ class Fragment(FragmentT):
 
     def __len__(self):
         return len(self.frag)
+
+    def __lt__(self, other):
+        return self.offset < other.offset
+
+    def __eq__(self, other):
+        return self.offset == other.offset
 
 
 class PayloadBuffer:
