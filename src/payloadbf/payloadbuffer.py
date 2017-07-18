@@ -240,9 +240,9 @@ class PayloadBuffer:
         p.outline_line_color = None
         p.grid.grid_line_color = None
 
-        sorted_fragments = sorted(self.fragments, key=lambda fr: fr.tags[0])
+        fragments = sorted(self.fragments)
         renderers = []
-        for ftag, gr in itertools.groupby(sorted_fragments, key=lambda fr: fr.tags[0]):
+        for ftag, gr in itertools.groupby(fragments, key=lambda fr: fr.tags[0]):
             gr = list(gr)
             cds = ColumnDataSource(data=dict(
                 offset=[f.offset for f in gr],
