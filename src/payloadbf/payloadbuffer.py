@@ -78,7 +78,6 @@ class PayloadBuffer:
         >>> pb.get_buffer()[36:40] == '1234'
         True
         >>> assert pb.output_viz()
-
     """
     def __init__(self, length=0, dbg=False):
         self.length = length
@@ -125,7 +124,10 @@ class PayloadBuffer:
         self.add(offset=sz, frag=frag, name=name, tags=tags)
 
     def last_fragment_end(self):
-        """ Return the smallest buffer size that can accommodate all the fragments (not the total length!). """
+        """ last_fragment_end(self) -> int
+
+        Return the smallest buffer size that can accommodate all the fragments (not the total length!).
+        """
         if not self.fragments:
             return 0
 
@@ -133,9 +135,10 @@ class PayloadBuffer:
         return end.offset + len(end.frag)
 
     def __len__(self):
-        """ Return the total length of the PayloadBuffer.
+        """ __len__(self) -> int
 
-        This is either the length argument to __init__ (if it was provided), or the end of the last fragment.
+        Return the total length of the PayloadBuffer. This is either the length argument to __init__ (if it was
+        provided), or the end of the last fragment.
         """
         if self.length:
             return self.length
@@ -285,9 +288,9 @@ class PayloadBuffer:
         show(p)
 
     def pprint_fragments(self, colorized=True):
-        r""" pprint_fragments(self, colorized=True):
+        r""" pprint_fragments(self, colorized=True) -> str
 
-        Pretty-prints the fragments in the PayloadBuffer.
+        Pretty-print the fragments in the PayloadBuffer.
 
         Arguments:
             colorized(bool): Controls if the returned string is colorized.
