@@ -5,7 +5,7 @@ import os
 
 from bokeh import palettes as bp
 from bokeh.models import HoverTool, ColumnDataSource, CategoricalColorMapper, Legend, PrintfTickFormatter
-from bokeh.plotting import figure, output_file, save, show
+from bokeh.plotting import figure, output_file, output_notebook, save, show
 from pwn import *
 from recordclass import recordclass
 from termcolor import COLORS
@@ -148,8 +148,7 @@ class PayloadBuffer:
 
         return bytes(result)
 
-    def output_viz(self, filename='pb.html'):
-        output_file(filename)
+    def output_viz(self):
         x_range = [-2, self.last_fragment_end() + 2]
         y_range = [0, 2]
 
@@ -210,11 +209,17 @@ class PayloadBuffer:
             ('tags', '@tags')
         ]
 
-        save(p)
         return p
 
     def show_viz(self, filename='pb.html'):
-        p = self.output_viz(filename)
+        output_file(filename)
+        p = self.output_viz()
+        save(p)
+        show(p)
+
+    def show_viz_notebook(self):
+        output_notebook()
+        p = self.output_viz()
         show(p)
 
     def pprint_fragments(self, colorized=True):
