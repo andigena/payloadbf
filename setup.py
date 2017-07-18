@@ -32,7 +32,7 @@ setup(
         re.sub(':[a-z]+:`~?(.*?)`', r'``\1``', read('CHANGELOG.rst'))
     ),
     author='tukan',
-    author_email='contact@ionelmc.ro',
+    author_email='pistukem@gmail.com',
     url='https://github.com/andigena/payloadbf',
     packages=find_packages('src'),
     package_dir={'': 'src'},
@@ -49,7 +49,6 @@ setup(
         'Operating System :: Microsoft :: Windows',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
         # uncomment if you test on these interpreters:
