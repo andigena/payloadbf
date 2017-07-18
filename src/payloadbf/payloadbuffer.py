@@ -142,6 +142,57 @@ class PayloadBuffer:
         else:
             return self.last_fragment_end()
 
+    @staticmethod
+    def _key_to_offsets(key):
+        if isinstance(key, slice):
+            start = key.start
+            stop = key.stop
+        else:
+            start = key
+            stop = key + 1
+
+        return start, stop
+
+    def __getitem__(self, key):
+        r""" __getitem__(self, key) -> list
+
+        Get a list of Fragments overlapping the given offset or an empty list if there are no overlaps. It works
+        similarly to how Python handles list indices (inclusive on the lower, exclusive on the upper end). Due to the
+        nature of the lookup, neither negative indices nor slice steps make no sense.
+
+        Arguments:
+            key(int, slice): Offset
+
+        Returns:
+            A list containing the Fragments overlapped by key.
+
+        Examples:
+            >>> pb = PayloadBuffer(256)
+            >>> pb.add(16, '1111')
+            >>> pb.add(20, '2222')
+            >>> pb[16]
+            [Fragment(offset=16, frag='1111', name='', tags=['untagged'])]
+            >>> pb[16:20]
+            [Fragment(offset=16, frag='1111', name='', tags=['untagged'])]
+            >>> pb[16:21]
+            [Fragment(offset=16, frag='1111', name='', tags=['untagged']), Fragment(offset=20, frag='2222', name='', tags=['untagged'])]
+        """
+        results = []
+        fragments = sorted(self.fragments)
+        start, stop = self._key_to_offsets(key)
+        for f in fragments:
+            fend = f.offset + len(f)
+            if fend <= start:
+                # not there yet
+                continue
+            if f.offset >= stop:
+                # no possible overlaps left
+                break
+
+            results.append(f)   # everything else must overlap with the interval
+
+        return results
+
     def unique_tags(self):
         return set(itertools.chain(*[f.tags for f in self.fragments]))
 
