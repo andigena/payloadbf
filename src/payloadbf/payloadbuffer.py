@@ -45,17 +45,18 @@ class Fragment(FragmentT):
 class PayloadBuffer:
     r""" Simple class that makes construction of exploit payloads a little more convenient.
 
-    It's a dictionary of offsets into the buffer and the corresponding fragments of the payload. The debug
-    parameter controls whether the buffer is pre-filled with random bytes or a cyclic pattern. Fragment buffers
-    are automatically flattened via `flat from pwntools
+    It's a dictionary of offsets into the buffer and the corresponding fragments of the payload. Gaps between the
+    fragments are filled with `filler`, which defaults to cyclic. Fragment buffers are automatically flattened via
+    `flat from pwntools
     <http://docs.pwntools.com/en/stable/util/packing.html#pwnlib.util.packing.flat>`_.
 
     Arguments:
         length(int): The length of the buffer.
-        dbg(bool): If True, gaps are filled with random data, otherwise with a cyclic pattern.
+        filler(callable): a callable with a single length parameter. Its return value is used to fill gaps. Defaults
+            to cyclic.
 
     Examples:
-        >>> pb = PayloadBuffer(48, dbg=True)
+        >>> pb = PayloadBuffer(48)
         >>> pb.add(16, 'ABCD', 'ret address')
         >>> pb.last_fragment_end()
         20
@@ -85,9 +86,9 @@ class PayloadBuffer:
         True
         >>> assert pb.output_viz()
     """
-    def __init__(self, length=0, dbg=False):
+    def __init__(self, length=0, filler=cyclic):
         self.length = length
-        self.debug = dbg
+        self.filler = filler
         self.fragments = []
 
     def _add(self, f):
@@ -209,11 +210,7 @@ class PayloadBuffer:
         if self.length == 0:
             self.length = self.last_fragment_end()
 
-        if self.debug:
-            result = bytearray(cyclic(self.length))
-        else:
-            result = bytearray(os.urandom(self.length))
-
+        result = bytearray(self.filler(self.length))
         for f in self.fragments:
             result[f.offset:(f.offset + len(f.frag))] = f.frag
 
