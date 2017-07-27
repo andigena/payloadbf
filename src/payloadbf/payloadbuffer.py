@@ -209,6 +209,20 @@ class PayloadBuffer:
     def unique_main_tags(self):
         return set((f.tags[0] for f in self.fragments))
 
+    def fragments_groupby_mtag(self):
+        r""" fragments_groupby_mtag(self) -> iterator
+
+        Group fragments by their main tag.
+
+        Returns:
+            an iterator of (main_tag, group) pairs.
+        """
+        def key(fr):
+            return fr.tags[0]
+
+        sorted_fragments = sorted(self.fragments, key=key)
+        return itertools.groupby(sorted_fragments, key=key)
+
     def get_buffer(self):
         if self.length == 0:
             self.length = self.last_fragment_end()
@@ -246,16 +260,15 @@ class PayloadBuffer:
         p.outline_line_color = None
         p.grid.grid_line_color = None
 
-        sorted_fragments = sorted(self.fragments, key=lambda fr: fr.tags[0])
         renderers = []
-        for ftag, gr in itertools.groupby(sorted_fragments, key=lambda fr: fr.tags[0]):
+        for mtag, gr in self.fragments_groupby_mtag():
             gr = list(gr)
             cds = ColumnDataSource(data=dict(
                 offset=[f.offset for f in gr],
                 size=[len(f.frag) for f in gr],
                 name=[f.name for f in gr],
                 tags=[f.tags for f in gr],
-                ftag=[ftag for _ in range(len(gr))],
+                ftag=[mtag for _ in range(len(gr))],
                 dump=[binascii.hexlify(f.frag[:4]) for f in gr],
                 xx=[f.offset + (len(f.frag)) / 2 for f in gr],
                 yy=[0.5 for _ in range(len(gr))]
@@ -266,7 +279,7 @@ class PayloadBuffer:
                               hover_alpha=0.2,
                               muted_alpha=0.2
                               )
-            renderers.append((ftag, [renderer]))
+            renderers.append((mtag, [renderer]))
 
         legend = Legend(items=renderers, location=(10, -30))
         legend.click_policy = "mute"
