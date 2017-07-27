@@ -233,7 +233,7 @@ class PayloadBuffer:
 
         return bytes(result)
 
-    def output_viz(self):
+    def _gen_1d_chart(self):
         x_range = [-2, self.last_fragment_end() + 2]
         y_range = [0, 2]
 
@@ -293,6 +293,10 @@ class PayloadBuffer:
             ('tags', '@tags')
         ]
 
+        return p
+
+    def output_viz(self):
+        p = self._gen_1d_chart()
         return p
 
     def show_viz(self, filename='pb.html'):
