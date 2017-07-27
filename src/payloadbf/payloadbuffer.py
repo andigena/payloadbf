@@ -206,6 +206,9 @@ class PayloadBuffer:
     def unique_tags(self):
         return set(itertools.chain(*[f.tags for f in self.fragments]))
 
+    def unique_main_tags(self):
+        return set((f.tags[0] for f in self.fragments))
+
     def get_buffer(self):
         if self.length == 0:
             self.length = self.last_fragment_end()
@@ -220,7 +223,7 @@ class PayloadBuffer:
         x_range = [-2, self.last_fragment_end() + 2]
         y_range = [0, 2]
 
-        factors = list(set([f.tags[0] if f.tags else '' for f in self.fragments]))
+        factors = tuple(self.unique_main_tags())
         mapper = CategoricalColorMapper(factors=factors, palette=bp.viridis(len(factors)))
 
         p = figure(title='Fragments', tools='hover,resize,reset,xwheel_zoom,xpan',
