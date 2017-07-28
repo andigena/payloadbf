@@ -209,7 +209,7 @@ class PayloadBuffer:
     def unique_main_tags(self):
         return set((f.tags[0] for f in self.fragments))
 
-    def fragments_groupby_mtag(self):
+    def fragments_groupby_mtag(self, fragments=None):
         r""" fragments_groupby_mtag(self) -> iterator
 
         Group fragments by their main tag.
@@ -220,7 +220,9 @@ class PayloadBuffer:
         def key(fr):
             return fr.tags[0]
 
-        sorted_fragments = sorted(self.fragments, key=key)
+        if fragments is None:
+            fragments = self.fragments
+        sorted_fragments = sorted(fragments, key=key)
         return itertools.groupby(sorted_fragments, key=key)
 
     def get_buffer(self):
