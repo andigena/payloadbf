@@ -5,7 +5,8 @@ import math
 import os
 
 from bokeh import palettes as bp
-from bokeh.models import HoverTool, ColumnDataSource, CategoricalColorMapper, Legend, PrintfTickFormatter
+from bokeh.models import HoverTool, ColumnDataSource, CategoricalColorMapper, Legend, PrintfTickFormatter, \
+    FixedTicker, Panel, Tabs
 from bokeh.plotting import figure, output_file, output_notebook, save, show
 from pwn import *
 from recordclass import recordclass
@@ -84,7 +85,7 @@ class PayloadBuffer:
         True
         >>> pb.get_buffer()[40:44] == '8765'
         True
-        >>> assert pb.output_viz()
+        >>> assert pb.output_viz(1200, 400)
     """
     def __init__(self, length=0, filler=cyclic):
         self.length = length
@@ -235,7 +236,13 @@ class PayloadBuffer:
 
         return bytes(result)
 
-    def _gen_1d_chart(self):
+    @staticmethod
+    def _add_legend(p, renderers, loc=(10, -30)):
+        legend = Legend(items=renderers, location=loc)
+        legend.click_policy = "mute"
+        p.add_layout(legend, 'right')
+
+    def _gen_1d_chart(self, width, height):
         x_range = [-2, self.last_fragment_end() + 2]
         y_range = [0, 2]
 
@@ -243,11 +250,10 @@ class PayloadBuffer:
         mapper = CategoricalColorMapper(factors=factors, palette=bp.viridis(len(factors)))
 
         p = figure(title='Fragments', tools='hover,resize,reset,xwheel_zoom,xpan',
-                   toolbar_location='above',
-                   active_scroll='xwheel_zoom',
-                   x_range=x_range,
-                   y_range=y_range,
-                   responsive=True
+                   toolbar_location='above', active_scroll='xwheel_zoom',
+                   x_range=x_range, y_range=y_range,
+                   plot_width=width, plot_height=height // 2  # TODO calculate this sanely
+                   # responsive=True
                    )
 
         p.xaxis[0].formatter = PrintfTickFormatter(format="0x%x")
@@ -256,8 +262,6 @@ class PayloadBuffer:
         p.yaxis.axis_line_color = None
         p.yaxis.minor_tick_line_color = None
         p.yaxis.major_tick_line_color = None
-        p.plot_width = 1200
-        p.plot_height = 150
 
         p.outline_line_color = None
         p.grid.grid_line_color = None
@@ -283,9 +287,90 @@ class PayloadBuffer:
                               )
             renderers.append((mtag, [renderer]))
 
-        legend = Legend(items=renderers, location=(10, -30))
-        legend.click_policy = "mute"
-        p.add_layout(legend, 'right')
+        self._add_legend(p, renderers)
+        p.select_one(HoverTool).tooltips = [
+            ('offset', '@offset'),
+            ('size', '@size'),
+            ('dump', '@dump'),
+            ('name', '@name'),
+            ('tags', '@tags')
+        ]
+
+        return p
+
+    def _gen_2d_chart(self, width, height, row_width=64, ticks_per_row=4):
+        def subdivide_fragments():
+            r""" Split fragments on row boundaries into two. """
+            res = []
+            # we could iterate over all the row boundaries and use __getitem__ find the chunks that overlap them but
+            # this seems more optimal (linear in the number of fragments vs. superlinear in the number of boundaries?)
+            # TODO evaluate properly
+            # TODO this and the way the Rects are drawn make the HoverTool output confusing for split fragments
+            #   TODO maybe via patches with missing points?
+            for f in self.fragments:
+                end = f.offset + len(f.frag)
+                start = f.offset
+                overlaps_boundary = (align(row_width, start) == align_down(row_width, end)) and start != end
+                if overlaps_boundary:
+                    f2_start = align(row_width, start)
+                    f1_size = f2_start - f.offset
+                    f1 = Fragment(offset=f.offset, frag=f.frag[:f1_size], name=f.name, tags=f.tags)
+                    f2 = Fragment(offset=f2_start, frag=f.frag[f1_size:], name=f.name, tags=f.tags)
+                    res.extend((f1, f2))
+                else:
+                    res.append(f)
+
+            return res
+
+        fragments = sorted(subdivide_fragments())
+        first_start = fragments[0].offset
+        x_range = (0, row_width + 1)
+        y_range = list(map(hex, reversed(range(align_down(row_width, first_start),
+                                               align(row_width, len(self)),
+                                               row_width))))
+
+        factors = tuple(self.unique_main_tags())
+        mapper = CategoricalColorMapper(factors=factors, palette=bp.viridis(len(factors)))
+
+        p = figure(title='Fragments', tools='hover,resize,reset,xwheel_zoom,xpan',
+                   toolbar_location='below', active_scroll='xwheel_zoom',
+                   x_range=x_range, y_range=y_range,
+                   x_axis_location='above',
+                   plot_width=width, plot_height=height
+                   # responsive=True
+                   )
+
+        p.xaxis[0].formatter = PrintfTickFormatter(format="0x%x")
+        p.xaxis[0].ticker = FixedTicker(ticks=range(0, row_width + 1, row_width // ticks_per_row))
+        p.axis.major_label_standoff = 0
+        p.xaxis.bounds = (0, row_width)
+        p.yaxis.major_tick_line_color = None
+        p.yaxis.minor_tick_line_color = None
+        p.outline_line_color = None
+        p.grid.grid_line_color = None
+
+        renderers = []
+        for mtag, gr in self.fragments_groupby_mtag(fragments):
+            gr = list(gr)
+            cds = ColumnDataSource(data=dict(
+                offset=[f.offset for f in gr],
+                size=[len(f.frag) for f in gr],
+                name=[f.name for f in gr],
+                tags=[f.tags for f in gr],
+                ftag=[mtag for _ in range(len(gr))],
+                dump=[binascii.hexlify(f.frag[:4]) for f in gr],
+                xx=[(f.offset + (len(f.frag) / 2.0)) % row_width for f in gr],
+                yy=[hex(align_down(row_width, f.offset)) for f in gr],
+            ))
+            renderer = p.rect('xx', 'yy', 'size', 1,
+                              source=cds, fill_alpha=0.6,
+                              fill_color={'field': 'ftag', 'transform': mapper},
+                              hover_alpha=0.2,
+                              muted_alpha=0.2
+                              )
+            renderers.append((mtag, [renderer]))
+
+        self._add_legend(p, renderers)
 
         p.select_one(HoverTool).tooltips = [
             ('offset', '@offset'),
@@ -297,19 +382,23 @@ class PayloadBuffer:
 
         return p
 
-    def output_viz(self):
-        p = self._gen_1d_chart()
-        return p
+    def output_viz(self, width, height):
+        p2d = self._gen_2d_chart(width, height)
+        tab2 = Panel(child=p2d, title="2D")
+        p1d = self._gen_1d_chart(width, height)
+        tab1 = Panel(child=p1d, title="1D")
+        tabs = Tabs(tabs=[tab2, tab1])
+        return tabs
 
-    def show_viz(self, filename='pb.html'):
+    def show_viz(self, width=1200, height=400, filename='pb.html'):
         output_file(filename)
-        p = self.output_viz()
+        p = self.output_viz(width, height)
         save(p)
         show(p)
 
-    def show_viz_notebook(self):
+    def show_viz_notebook(self, width=1200, height=400):
         output_notebook()
-        p = self.output_viz()
+        p = self.output_viz(width, height)
         show(p)
 
     def pprint_fragments(self, colorized=True):
