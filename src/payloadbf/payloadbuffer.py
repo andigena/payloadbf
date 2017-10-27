@@ -298,42 +298,71 @@ class PayloadBuffer:
 
         return p
 
+    @staticmethod
+    def _gen_coords(fragments, row_width):
+        r""" Generate coordinates for the Patches glyph used to draw the 2D plot, split fragments on row boundaries."""
+        def get_patch(s, e):
+            r""" Get the coordinates for a rectangular patch starting at s and ending at e."""
+            s_x = s % row_width
+            e_x = e % row_width if e % row_width else row_width
+            xt = [s_x, s_x, e_x, e_x]
+            yt = [align(row_width, s + 1), align_down(row_width, s),
+                  align_down(row_width, s), align(row_width, s + 1)]
+            return xt, yt
+
+        xx = []
+        yy = []
+        nan = float('nan')
+        for f in fragments:
+            end = f.offset + len(f.frag)
+            start = f.offset
+            overlaps_boundary = (align(row_width, start + 1) != align(row_width, end + 1)) and start != end
+            if overlaps_boundary:
+                # split into as many patches as needed
+                x_coords = []
+                y_coords = []
+                while start < end:
+                    rem_start = align(row_width, start + 1)
+                    if rem_start > end:
+                        rem_start = end
+                    xt, yt = get_patch(start, rem_start)
+                    x_coords.extend(xt + [nan])
+                    y_coords.extend(yt + [nan])
+                    start = rem_start
+
+            else:
+                x_coords, y_coords = get_patch(start, end)
+
+            xx.append(x_coords)
+            yy.append(y_coords)
+
+        return xx, yy
+
     def _gen_2d_chart(self, width, height, row_width=64, ticks_per_row=4):
-        def subdivide_fragments():
-            r""" Split fragments on row boundaries into two. """
-            res = []
-            # we could iterate over all the row boundaries and use __getitem__ find the chunks that overlap them but
-            # this seems more optimal (linear in the number of fragments vs. superlinear in the number of boundaries?)
-            # TODO evaluate properly
-            # TODO this and the way the Rects are drawn make the HoverTool output confusing for split fragments
-            #   TODO maybe via patches with missing points?
-            for f in self.fragments:
-                end = f.offset + len(f.frag)
-                start = f.offset
-                overlaps_boundary = (align(row_width, start) == align_down(row_width, end)) and start != end
-                if overlaps_boundary:
-                    f2_start = align(row_width, start)
-                    f1_size = f2_start - f.offset
-                    f1 = Fragment(offset=f.offset, frag=f.frag[:f1_size], name=f.name, tags=f.tags)
-                    f2 = Fragment(offset=f2_start, frag=f.frag[f1_size:], name=f.name, tags=f.tags)
-                    res.extend((f1, f2))
-                else:
-                    res.append(f)
+        r""" _gen_2d_chart2(self, width, height, row_width=64, ticks_per_row=4) -> LayoutDOM
 
-            return res
+        Generate a 2D chart of the fragments. Fragments overlapping row boundaries are drawn using Patches with missing
+        points, so that hover/highlighting works as expected.
 
-        fragments = sorted(subdivide_fragments())
-        first_start = fragments[0].offset
+        Arguments:
+            width(int):  Plot width
+            height(int): Plot height
+            row_width(int): Length of the x axis.
+            ticks_per_row(int): Tick count of the x axis.
+
+        Returns:
+            A string containing an overview of the fragments.
+        """
+        fragments = sorted(self.fragments)
+        last_end = align(row_width, self.last_fragment_end() + 1)
         x_range = (0, row_width + 1)
-        y_range = list(map(hex, reversed(range(align_down(row_width, first_start),
-                                               align(row_width, len(self)),
-                                               row_width))))
+        y_range = (last_end, 0)
 
         factors = tuple(self.unique_main_tags())
         mapper = CategoricalColorMapper(factors=factors, palette=bp.viridis(len(factors)))
 
-        p = figure(title='Fragments', tools='hover,resize,reset,xwheel_zoom,xpan',
-                   toolbar_location='below', active_scroll='xwheel_zoom',
+        p = figure(title='Fragments', tools='hover,resize,reset,wheel_zoom,pan',
+                   toolbar_location='below', active_scroll='wheel_zoom',
                    x_range=x_range, y_range=y_range,
                    x_axis_location='above',
                    plot_width=width, plot_height=height
@@ -341,7 +370,9 @@ class PayloadBuffer:
                    )
 
         p.xaxis[0].formatter = PrintfTickFormatter(format="0x%x")
+        p.yaxis[0].formatter = PrintfTickFormatter(format="0x%x")
         p.xaxis[0].ticker = FixedTicker(ticks=range(0, row_width + 1, row_width // ticks_per_row))
+        p.yaxis[0].ticker = FixedTicker(ticks=range(0, last_end + 1, row_width))
         p.axis.major_label_standoff = 0
         p.xaxis.bounds = (0, row_width)
         p.yaxis.major_tick_line_color = None
@@ -352,6 +383,7 @@ class PayloadBuffer:
         renderers = []
         for mtag, gr in self.fragments_groupby_mtag(fragments):
             gr = list(gr)
+            xx, yy = self._gen_coords(gr, row_width)
             cds = ColumnDataSource(data=dict(
                 offset=[f.offset for f in gr],
                 size=[len(f.frag) for f in gr],
@@ -359,15 +391,15 @@ class PayloadBuffer:
                 tags=[f.tags for f in gr],
                 ftag=[mtag for _ in range(len(gr))],
                 dump=[binascii.hexlify(f.frag[:4]) for f in gr],
-                xx=[(f.offset + (len(f.frag) / 2.0)) % row_width for f in gr],
-                yy=[hex(align_down(row_width, f.offset)) for f in gr],
+                xx=xx,
+                yy=yy,
             ))
-            renderer = p.rect('xx', 'yy', 'size', 1,
-                              source=cds, fill_alpha=0.6,
-                              fill_color={'field': 'ftag', 'transform': mapper},
-                              hover_alpha=0.2,
-                              muted_alpha=0.2
-                              )
+            renderer = p.patches('xx', 'yy',
+                                 source=cds, fill_alpha=0.6,
+                                 fill_color={'field': 'ftag', 'transform': mapper},
+                                 hover_alpha=0.2,
+                                 muted_alpha=0.2
+                                 )
             renderers.append((mtag, [renderer]))
 
         self._add_legend(p, renderers)
@@ -377,7 +409,7 @@ class PayloadBuffer:
             ('size', '@size'),
             ('dump', '@dump'),
             ('name', '@name'),
-            ('tags', '@tags')
+            ('tags', '@tags'),
         ]
 
         return p
