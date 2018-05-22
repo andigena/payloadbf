@@ -22,6 +22,10 @@ Overview
     :alt: Travis-CI Build Status
     :target: https://travis-ci.org/andigena/payloadbf
 
+.. |commits-since| image:: https://img.shields.io/github/commits-since/andigena/payloadbf/v0.1.0.svg
+    :alt: Commits since latest release
+    :target: https://github.com/andigena/payloadbf/compare/v0.1.0...master
+
 
 .. end-badges
 
