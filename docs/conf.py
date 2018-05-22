@@ -25,7 +25,7 @@ project = u'payloadbf'
 year = u'2017'
 author = u'tukan'
 copyright = '{0}, {1}'.format(year, author)
-version = release = u'0.1.0'
+version = release = u'0.2.0'
 
 pygments_style = 'trac'
 templates_path = ['.']
