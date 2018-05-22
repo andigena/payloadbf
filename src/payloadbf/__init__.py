@@ -3,4 +3,4 @@ from __future__ import print_function
 
 from payloadbf.payloadbuffer import PayloadBuffer
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

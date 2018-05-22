@@ -11,7 +11,7 @@ Overview
       - |docs|
     * - tests
       - | |travis|
-    * - package
+    * - commits since release
       - | |commits-since|
 
 .. |docs| image:: https://readthedocs.org/projects/payloadbf/badge/?version=latest
@@ -22,9 +22,9 @@ Overview
     :alt: Travis-CI Build Status
     :target: https://travis-ci.org/andigena/payloadbf
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/andigena/payloadbf/v0.1.0.svg
+.. |commits-since| image:: https://img.shields.io/github/commits-since/andigena/payloadbf/v0.2.0.svg
     :alt: Commits since latest release
-    :target: https://github.com/andigena/payloadbf/compare/v0.1.0...master
+    :target: https://github.com/andigena/payloadbf/compare/v0.2.0...master
 
 
 .. end-badges
